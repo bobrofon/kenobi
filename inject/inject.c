@@ -30,6 +30,7 @@ SOFTWARE.*/
 #include <unistd.h>
 #include <sys/user.h>
 #include <wait.h>
+#include <sys/stat.h>
 
 #include "linux-inject/utils.h"
 #include "linux-inject/ptrace.h"
@@ -150,8 +151,19 @@ void injectSharedLibrary_end()
 {
 }
 
+int has_access(pid_t pid) {
+	char filename[30];
+	sprintf(filename, "/proc/%d/maps", pid);
+	struct stat info;
+	stat(filename, &info);
+	return info.st_uid == getuid();
+}
+
 void maybe_inject(pid_t target, const char* libname)
 {
+	if (!has_access(target)) {
+		return;
+	}
 	char* libPath = realpath(libname, NULL);
 	printf("targeting process with pid %d\n", target);
 
