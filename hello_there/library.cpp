@@ -71,7 +71,7 @@ void export_ld_preload() {
     }
 }
 
-}
+} // namespace
 
 using fork_t = pid_t (*)();
 

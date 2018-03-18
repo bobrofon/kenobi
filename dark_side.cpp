@@ -28,7 +28,7 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-const fs::path PROC{"/proc"};
+constexpr auto PROC = "/proc";
 
 pid_t to_pid(std::string_view str) {
 	std::stringstream ss{str.data()};
@@ -37,11 +37,11 @@ pid_t to_pid(std::string_view str) {
 	return pid;
 }
 
-}
+} // namespace
 
 std::vector<pid_t> all_pids() {
 	std::vector<pid_t> pids{};
-	for (auto& p: fs::directory_iterator(PROC)) {
+	for (auto& p: fs::directory_iterator(fs::path(PROC))) {
 		auto pid = to_pid(p.path().filename().string());
 		if (pid) {
 			pids.push_back(pid);

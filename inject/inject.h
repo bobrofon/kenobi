@@ -19,22 +19,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
+#ifndef KENOBI_INJECT_H
+#define KENOBI_INJECT_H
 
-#include <iostream>
+#include <sys/types.h>
 
-#include "dark_side.h"
 
-extern "C" {
-#include "inject/inject.h"
-} // extern C
+void maybe_inject(pid_t pid, const char* libname);
 
-constexpr auto EVIL_LIB = "libhello_there.so";
 
-int main() {
-    std::cout << "Hello, World!" << std::endl;
-	for (const auto& pid: all_pids()) {
-		std::cout << pid << std::endl;
-		maybe_inject(pid, EVIL_LIB);
-	}
-    return 0;
-}
+#endif //KENOBI_INJECT_H
