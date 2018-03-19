@@ -74,6 +74,7 @@ void export_ld_preload() {
 } // namespace
 
 using fork_t = pid_t (*)();
+using open_t = int (*)(const char *, int, ...);
 
 extern "C" {
 
@@ -81,15 +82,27 @@ extern "C" {
 
 // надеемся, что это часть fork exec
 pid_t fork(void) {
-	auto real_fork = reinterpret_cast<fork_t >(dlsym(RTLD_NEXT,"fork"));
+	auto real_fork = reinterpret_cast<fork_t>(dlsym(RTLD_NEXT,"fork"));
 	export_ld_preload();
 	return real_fork();
 }
 
 pid_t vfork(void) {
-	auto real_vfork = reinterpret_cast<fork_t >(dlsym(RTLD_NEXT,"vfork"));
+	auto real_vfork = reinterpret_cast<fork_t>(dlsym(RTLD_NEXT,"vfork"));
 	export_ld_preload();
 	return real_vfork();
+}
+
+int open (const char *pathname, int flags, ...){
+
+	auto real_open = reinterpret_cast<open_t>(dlsym(RTLD_NEXT, "open"));
+	va_list args;
+	mode_t mode;
+	int fd;
+
+	// TODO some evil staff
+
+	return real_open(pathname, flags, mode);
 }
 
 }
