@@ -96,8 +96,8 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov %rdx,%r9 \n"
 		// 1st argument to __libc_dlopen_mode(): filename = the address of the buffer returned by malloc()
 		"mov %rax,%rdi \n"
-		// 2nd argument to __libc_dlopen_mode(): flag = RTLD_LAZY
-		"movabs $1,%rsi \n"
+		// 2nd argument to __libc_dlopen_mode(): flag = RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND
+		"movabs $266,%rsi \n"
 		// call __libc_dlopen_mode()
 		"callq *%r9 \n"
 		// restore old r9 value
