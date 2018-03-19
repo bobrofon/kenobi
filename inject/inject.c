@@ -32,8 +32,8 @@ SOFTWARE.*/
 #include <wait.h>
 #include <sys/stat.h>
 
-#include "linux-inject/utils.h"
-#include "linux-inject/ptrace.h"
+#include "utils.h"
+#include "ptrace.h"
 
 /*
  * injectSharedLibrary()
