@@ -22,7 +22,7 @@
  *
  */
 
-pid_t findProcessByName(char* processName)
+pid_t findProcessByName(const char* processName)
 {
 	if(processName == NULL)
 	{
@@ -122,7 +122,7 @@ long freespaceaddr(pid_t pid)
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
-		exit(1);
+		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
 		sscanf(line, "%lx-%*lx %s %*s %s %*d", &addr, perms, str);
@@ -161,7 +161,7 @@ long getlibcaddr(pid_t pid)
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
-		exit(1);
+		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
 		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
@@ -191,7 +191,7 @@ long getlibcaddr(pid_t pid)
  *
  */
 
-int checkloaded(pid_t pid, char* libname)
+int checkloaded(pid_t pid, const char* libname)
 {
 	FILE *fp;
 	char filename[30];
@@ -202,7 +202,7 @@ int checkloaded(pid_t pid, char* libname)
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
-		exit(1);
+		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
 		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
@@ -229,7 +229,7 @@ int checkloaded(pid_t pid, char* libname)
  *
  */
 
-long getFunctionAddress(char* funcName)
+long getFunctionAddress(const char* funcName)
 {
 	void* self = dlopen("libc.so.6", RTLD_LAZY);
 	void* funcAddr = dlsym(self, funcName);
@@ -261,9 +261,9 @@ long getFunctionAddress(char* funcName)
  *
  */
 
-unsigned char* findRet(void* endAddr)
+const unsigned char* findRet(const void* endAddr)
 {
-	unsigned char* retInstAddr = endAddr;
+	const unsigned char* retInstAddr = endAddr;
 	while(*retInstAddr != INTEL_RET_INSTRUCTION)
 	{
 		retInstAddr--;
@@ -281,7 +281,7 @@ unsigned char* findRet(void* endAddr)
  *
  */
 
-void usage(char* name)
+void usage(const char* name)
 {
 	printf("usage: %s [-n process-name] [-p pid] [library-to-inject]\n", name);
 }

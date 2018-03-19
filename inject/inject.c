@@ -161,22 +161,26 @@ int has_access(pid_t pid) {
 
 void maybe_inject(pid_t target, const char* libname)
 {
-	if (!has_access(target)) {
-		return;
-	}
+	char* backup = NULL;
+	char* newcode = NULL;
 	char* libPath = realpath(libname, NULL);
+	if (libPath == NULL) return ;
 	printf("targeting process with pid %d\n", target);
 
 	int libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
 	long mylibcaddr = getlibcaddr(mypid);
+	if (mylibcaddr == -1) return ;
 
 	// find the addresses of the syscalls that we'd like to use inside the
 	// target, as loaded inside THIS process (i.e. NOT the target process)
 	long mallocAddr = getFunctionAddress("malloc");
+	if (mallocAddr == -1) return ;
 	long freeAddr = getFunctionAddress("free");
+	if (freeAddr == -1) return ;
 	long dlopenAddr = getFunctionAddress("__libc_dlopen_mode");
+	if (dlopenAddr == -1) return ;
 
 	// use the base address of libc to calculate offsets for the syscalls
 	// we want to use
@@ -188,6 +192,7 @@ void maybe_inject(pid_t target, const char* libname)
 	// get the target process' libc address and use it to find the
 	// addresses of the syscalls we want to use inside the target process
 	long targetLibcAddr = getlibcaddr(target);
+	if (targetLibcAddr == -1) return ;
 	long targetMallocAddr = targetLibcAddr + mallocOffset;
 	long targetFreeAddr = targetLibcAddr + freeOffset;
 	long targetDlopenAddr = targetLibcAddr + dlopenOffset;
@@ -196,13 +201,15 @@ void maybe_inject(pid_t target, const char* libname)
 	memset(&oldregs, 0, sizeof(struct user_regs_struct));
 	memset(&regs, 0, sizeof(struct user_regs_struct));
 
-	ptrace_attach(target);
+	if (ptrace_attach(target)) return ;
 
-	ptrace_getregs(target, &oldregs);
+	if(ptrace_getregs(target, &oldregs)) goto CLEANUP;
 	memcpy(&regs, &oldregs, sizeof(struct user_regs_struct));
 
 	// find a good address to copy code to
-	long addr = freespaceaddr(target) + sizeof(long);
+	long addr = freespaceaddr(target);
+	if (addr == -1) goto CLEANUP;
+	addr += sizeof(long);
 
 	// now that we have an address to copy code to, set the target's rip to
 	// it. we have to advance by 2 bytes here because rip gets incremented
@@ -219,7 +226,7 @@ void maybe_inject(pid_t target, const char* libname)
 	regs.rsi = targetFreeAddr;
 	regs.rdx = targetDlopenAddr;
 	regs.rcx = libPathLength;
-	ptrace_setregs(target, &regs);
+	if(ptrace_setregs(target, &regs)) goto CLEANUP;
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate.
 	size_t injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
@@ -234,12 +241,12 @@ void maybe_inject(pid_t target, const char* libname)
 	intptr_t injectSharedLibrary_ret = (intptr_t)findRet(injectSharedLibrary_end) - (intptr_t)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
-	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
-	ptrace_read(target, addr, backup, injectSharedLibrary_size);
+	backup = malloc(injectSharedLibrary_size * sizeof(char));
+	if (ptrace_read(target, addr, backup, injectSharedLibrary_size)) goto CLEANUP;
 
 	// set up a buffer to hold the code we're going to inject into the
 	// target process.
-	char* newcode = malloc(injectSharedLibrary_size * sizeof(char));
+	newcode = malloc(injectSharedLibrary_size * sizeof(char));
 	memset(newcode, 0, injectSharedLibrary_size * sizeof(char));
 
 	// copy the code of injectSharedLibrary() to a buffer.
@@ -249,17 +256,17 @@ void maybe_inject(pid_t target, const char* libname)
 
 	// copy injectSharedLibrary()'s code to the target address inside the
 	// target process' address space.
-	ptrace_write(target, addr, newcode, injectSharedLibrary_size);
+	if (ptrace_write(target, addr, newcode, injectSharedLibrary_size)) goto CLEANUP;
 
 	// now that the new code is in place, let the target run our injected
 	// code.
-	ptrace_cont(target);
+	if (ptrace_cont(target)) goto CLEANUP;
 
 	// at this point, the target should have run malloc(). check its return
 	// value to see if it succeeded, and bail out cleanly if it didn't.
 	struct user_regs_struct malloc_regs;
 	memset(&malloc_regs, 0, sizeof(struct user_regs_struct));
-	ptrace_getregs(target, &malloc_regs);
+	if (ptrace_getregs(target, &malloc_regs)) goto CLEANUP;
 	unsigned long long targetBuf = malloc_regs.rax;
 	if(targetBuf == 0)
 	{
@@ -278,16 +285,16 @@ void maybe_inject(pid_t target, const char* libname)
 	// read the current value of rax, which contains malloc's return value,
 	// and copy the name of our shared library to that address inside the
 	// target process.
-	ptrace_write(target, targetBuf, libPath, libPathLength);
+	if (ptrace_write(target, targetBuf, libPath, libPathLength)) goto CLEANUP;
 
 	// continue the target's execution again in order to call
 	// __libc_dlopen_mode.
-	ptrace_cont(target);
+	if (ptrace_cont(target)) goto CLEANUP;
 
 	// check out what the registers look like after calling dlopen.
 	struct user_regs_struct dlopen_regs;
 	memset(&dlopen_regs, 0, sizeof(struct user_regs_struct));
-	ptrace_getregs(target, &dlopen_regs);
+	if (ptrace_getregs(target, &dlopen_regs)) goto CLEANUP;
 	unsigned long long libAddr = dlopen_regs.rax;
 
 	// if rax is 0 here, then __libc_dlopen_mode failed, and we should bail
@@ -311,6 +318,7 @@ void maybe_inject(pid_t target, const char* libname)
 		fprintf(stderr, "could not inject \"%s\"\n", libname);
 	}
 
+CLEANUP:
 	// as a courtesy, free the buffer that we allocated inside the target
 	// process. we don't really care whether this succeeds, so don't
 	// bother checking the return value.
@@ -319,8 +327,11 @@ void maybe_inject(pid_t target, const char* libname)
 	// at this point, if everything went according to plan, we've loaded
 	// the shared library inside the target process, so we're done. restore
 	// the old state and detach from the target.
-	restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
-	free(backup);
-	free(newcode);
-
+	if (backup) {
+		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
+		free(backup);
+	}
+	if (newcode) {
+		free(newcode);
+	}
 }
