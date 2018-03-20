@@ -56,19 +56,31 @@ std::string_view current_so_path() {
 }
 
 void export_ld_preload() {
-    std::string preload_path{current_preload_path()};
-    std::string self_path{current_so_path()};
+    const std::string self_path{current_so_path()};
 
-    if (preload_path.find(self_path) != preload_path.npos) {
-        return;
-    }
-
-	const auto new_preload = self_path + " " + preload_path;
-	auto err = setenv(LD_PRELOAD, new_preload.data(), true);
+	constexpr auto overwrite = true;
+    auto err = setenv(LD_PRELOAD, self_path.data(), overwrite);
     if (err) {
-	    throw std::runtime_error("'setenv("s + LD_PRELOAD + ", " + new_preload
+	    throw std::runtime_error("'setenv("s + LD_PRELOAD + ", " + self_path
 	                             + ")' failed: " + strerror(err));
     }
+	if (current_preload_path() != self_path) {
+		throw std::runtime_error("'setenv' failed without error");
+	}
+}
+
+void add_self_preload() {
+	export_ld_preload();
+	// TODO выяснить почему не работает первый вызов
+	export_ld_preload();
+}
+
+bool is_preloaded() {
+	return current_preload_path() == current_so_path();
+}
+
+void hide_ld_preload() {
+	unsetenv(LD_PRELOAD);
 }
 
 } // namespace
@@ -83,13 +95,13 @@ extern "C" {
 // надеемся, что это часть fork exec
 pid_t fork(void) {
 	auto real_fork = reinterpret_cast<fork_t>(dlsym(RTLD_NEXT,"fork"));
-	export_ld_preload();
+	add_self_preload();
 	return real_fork();
 }
 
 pid_t vfork(void) {
 	auto real_vfork = reinterpret_cast<fork_t>(dlsym(RTLD_NEXT,"vfork"));
-	export_ld_preload();
+	add_self_preload();
 	return real_vfork();
 }
 
@@ -97,8 +109,7 @@ int open (const char *pathname, int flags, ...){
 
 	auto real_open = reinterpret_cast<open_t>(dlsym(RTLD_NEXT, "open"));
 	va_list args;
-	mode_t mode;
-	int fd;
+	mode_t mode{};
 
 	// TODO some evil staff
 
@@ -107,8 +118,13 @@ int open (const char *pathname, int flags, ...){
 
 }
 
+
 __attribute__((constructor))
 void init() {
     greeting();
-	unsetenv(LD_PRELOAD);
+	if (is_preloaded()) {
+		hide_ld_preload();
+	} else {
+		add_self_preload();
+	}
 }

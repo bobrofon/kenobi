@@ -257,6 +257,7 @@ int  checktargetsig(int pid)
 		//ptrace(PTRACE_CONT, pid, NULL, SIGSTOP);
 		return -1;
 	}
+	return 0;
 }
 
 /*

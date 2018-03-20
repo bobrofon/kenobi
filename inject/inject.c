@@ -60,6 +60,13 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	//   rdx = address of __libc_dlopen_mode() in target process
 	//   rcx = size of the path to the shared library we want to load
 
+	// align to 16
+	asm(
+		"pushq %rsp\n"
+		"pushq (%rsp)\n"
+		"andq $-0x10, %rsp"
+	);
+
 	// save addresses of free() and __libc_dlopen_mode() on the stack for later use
 	asm(
 	// rsi is going to contain the address of free(). it's going to get wiped
@@ -97,7 +104,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		// 1st argument to __libc_dlopen_mode(): filename = the address of the buffer returned by malloc()
 		"mov %rax,%rdi \n"
 		// 2nd argument to __libc_dlopen_mode(): flag = RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND
-		"movabs $266,%rsi \n"
+		"movabs $1,%rsi \n"
 		// call __libc_dlopen_mode()
 		"callq *%r9 \n"
 		// restore old r9 value
@@ -136,6 +143,9 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// we already overwrote the RET instruction at the end of this function
 	// with an INT 3, so at this point the injector will regain control of
 	// the target's execution.
+	asm(
+	"movq 8(%rsp), %rsp"
+	);
 }
 
 /*

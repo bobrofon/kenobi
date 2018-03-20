@@ -30,12 +30,9 @@ extern "C" {
 
 constexpr auto EVIL_LIB = "libhello_there.so";
 
-int main() {
-    std::cout << "Hello, World!" << std::endl;
-	maybe_inject(32499, EVIL_LIB);
-	for (const auto& pid: all_pids()) {
-		std::cout << pid << std::endl;
-		maybe_inject(pid, EVIL_LIB);
-	}
+int main(int argc, char *argv[]) {
+	const auto pid = static_cast<pid_t>(std::atoi(argv[1]));
+	maybe_inject(pid, EVIL_LIB);
+
     return 0;
 }
