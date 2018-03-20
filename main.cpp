@@ -20,7 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
+#include <unistd.h>
+
 #include <iostream>
+#include <thread>
 
 #include "dark_side.h"
 
@@ -30,9 +33,22 @@ extern "C" {
 
 constexpr auto EVIL_LIB = "libhello_there.so";
 
+namespace {
+
+void make_noise() {
+	const auto pid = getpid();
+	const auto tid = std::this_thread::get_id();
+	for (;;) {
+		std::cout << "pid=" << pid << " tid=" << tid << std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+}
+
+} // namespace
+
 int main(int argc, char *argv[]) {
 	const auto pid = static_cast<pid_t>(std::atoi(argv[1]));
 	maybe_inject(pid, EVIL_LIB);
-
-    return 0;
+	std::thread noise{make_noise};
+	noise.join();
 }
