@@ -22,7 +22,14 @@ SOFTWARE.*/
 
 #include "dark_side.h"
 
+#include <cstring>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <algorithm>
 #include <experimental/filesystem>
+
+using namespace std::string_literals;
 
 namespace fs = std::experimental::filesystem;
 
@@ -37,15 +44,37 @@ pid_t to_pid(std::string_view str) {
 	return pid;
 }
 
+template <typename T>
+std::set<T> difference(const std::set<T>& a, const std::set<T>& b) {
+	std::set<T> res{};
+	std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(res, res.begin()));
+	return res;
+}
+
+bool has_ownership(const fs::path& path) {
+	struct stat info{};
+	if (auto err = stat(path.string().data(), &info); err) {
+		throw std::runtime_error("'stat("s + path.string() + ")' failed: " + strerror(err));
+	}
+	return info.st_uid == getuid();
+}
+
 } // namespace
 
-std::vector<pid_t> all_pids() {
-	std::vector<pid_t> pids{};
+std::set<pid_t> all_pids() {
+	std::set<pid_t> pids{};
 	for (auto& p: fs::directory_iterator(fs::path(PROC))) {
 		auto pid = to_pid(p.path().filename().string());
-		if (pid) {
-			pids.push_back(pid);
+		if (pid && has_ownership(p)) {
+			pids.insert(pid);
 		}
 	}
 	return pids;
+}
+
+std::set<pid_t> pid_watcher::new_pids() {
+	const auto old_pids = std::move(pids_);
+	pids_ = all_pids();
+
+	return difference(pids_, old_pids);
 }

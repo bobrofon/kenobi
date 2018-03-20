@@ -39,7 +39,7 @@ void make_noise() {
 	const auto pid = getpid();
 	const auto tid = std::this_thread::get_id();
 	for (;;) {
-		std::cout << "pid=" << pid << " tid=" << tid << std::endl;
+		std::cout << "evil process is alive: " << "pid=" << pid << " tid=" << tid << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 }
@@ -47,8 +47,17 @@ void make_noise() {
 } // namespace
 
 int main(int argc, char *argv[]) {
-	const auto pid = static_cast<pid_t>(std::atoi(argv[1]));
-	maybe_inject(pid, EVIL_LIB);
 	std::thread noise{make_noise};
-	noise.join();
+	pid_watcher watcher{};
+
+	for (;;) {
+		for (auto pid: watcher.new_pids()) {
+			std::cout << "found new pid '" << pid << "'" << std::endl
+				<< "trying to inject " << EVIL_LIB << std::endl;
+			if (auto err = maybe_inject(pid, EVIL_LIB); err) {
+				return err;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 }

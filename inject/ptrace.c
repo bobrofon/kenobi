@@ -253,8 +253,8 @@ int  checktargetsig(int pid)
 	if(targetsig.si_signo != SIGTRAP)
 	{
 		fprintf(stderr, "instead of expected SIGTRAP, target stopped with signal %d: %s\n", targetsig.si_signo, strsignal(targetsig.si_signo));
-		//fprintf(stderr, "sending process %d a SIGSTOP signal for debugging purposes\n", pid);
-		//ptrace(PTRACE_CONT, pid, NULL, SIGSTOP);
+		fprintf(stderr, "sending process %d a SIGSTOP signal for debugging purposes\n", pid);
+		ptrace(PTRACE_CONT, pid, NULL, SIGSTOP);
 		return -1;
 	}
 	return 0;

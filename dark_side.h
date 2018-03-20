@@ -24,8 +24,14 @@ SOFTWARE.*/
 
 #include <sys/types.h>
 
-#include <vector>
+#include <set>
 
-std::vector<pid_t> all_pids();
+class pid_watcher {
+public:
+	std::set<pid_t> new_pids();
+
+private:
+	std::set<pid_t> pids_;
+};
 
 #endif //KENOBI_DARK_SIDE_H
