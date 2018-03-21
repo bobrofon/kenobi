@@ -54,7 +54,7 @@ std::set<T> difference(const std::set<T>& a, const std::set<T>& b) {
 bool has_ownership(const fs::path& path) {
 	struct stat info{};
 	if (auto err = stat(path.string().data(), &info); err) {
-		throw std::runtime_error("'stat("s + path.string() + ")' failed: " + strerror(err));
+		return false;
 	}
 	return info.st_uid == getuid();
 }
