@@ -18,7 +18,7 @@ add_custom_command(
         DEPENDS
             ${CMAKE_CURRENT_BINARY_DIR}/hello_there/libhello_there.so
         COMMAND
-            cp ${CMAKE_CURRENT_BINARY_DIR}/hello_there/libhello_there.so ${CMAKE_CURRENT_BINARY_DIR}/libhello_there.so
+            ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/hello_there/libhello_there.so ${CMAKE_CURRENT_BINARY_DIR}/libhello_there.so
         COMMENT
             "copy libhello_there.so"
         VERBATIM
