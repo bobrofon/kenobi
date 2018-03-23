@@ -158,6 +158,17 @@ bool is_hiden(const char *pathname) noexcept {
 using fork_t = pid_t (*)();
 using open_t = int (*)(const char *, int, ...);
 
+static int _open(const char* const pathname, const int flags, const mode_t mode) {
+	const static int no_fd = -1;
+	const static char *open_name = "open";
+
+	const open_t open_func = open_t(dlsym(RTLD_NEXT, open_name));
+	if (!open_func) {
+		return no_fd;
+	}
+	return open_func(pathname, flags, mode);
+}
+
 extern "C" {
 
 // TODO нужно переопределять exec функции, но там сложно разбирать vararg аргументы
