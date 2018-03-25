@@ -125,7 +125,7 @@ long freespaceaddr(pid_t pid)
 		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
-		sscanf(line, "%lx-%*lx %s %*s %s %*d", &addr, perms, str);
+		sscanf(line, "%lx-%*x %s %*s %s %*d", &addr, perms, str);
 
 		if(strstr(perms, "x") != NULL)
 		{
@@ -164,7 +164,7 @@ long getlibcaddr(pid_t pid)
 		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
-		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
+		sscanf(line, "%lx-%*x %*s %*s %*s %*d", &addr);
 		if(strstr(line, "libc-") != NULL)
 		{
 			break;
@@ -205,7 +205,7 @@ int checkloaded(pid_t pid, const char* libname)
 		return -1;
 	while(fgets(line, 850, fp) != NULL)
 	{
-		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
+		sscanf(line, "%lx-%*x %*s %*s %*s %*d", &addr);
 		if(strstr(line, libname) != NULL)
 		{
 			fclose(fp);

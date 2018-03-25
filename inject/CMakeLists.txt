@@ -4,3 +4,5 @@ project(inject C)
 set(CMAKE_C_STANDARD 99)
 
 add_library(inject utils.c utils.h ptrace.c ptrace.h inject.c inject.h)
+
+target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})

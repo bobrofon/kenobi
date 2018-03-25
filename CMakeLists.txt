@@ -10,7 +10,7 @@ add_subdirectory(inject)
 
 add_executable(kenobi main.cpp dark_side.cpp dark_side.h)
 
-target_link_libraries(${PROJECT_NAME} -lstdc++fs ${CMAKE_DL_LIBS} inject ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${PROJECT_NAME} -lstdc++fs inject ${CMAKE_THREAD_LIBS_INIT})
 
 add_custom_command(
         OUTPUT
