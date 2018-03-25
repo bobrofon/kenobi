@@ -218,7 +218,7 @@ int ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 
 	while (byteCount < len)
 	{
-		memcpy(&word, vptr + byteCount, sizeof(word));
+		memcpy(&word, (char*)vptr + byteCount, sizeof(word));
 		word = ptrace(PTRACE_POKETEXT, pid, addr + byteCount, word);
 		if(word == -1)
 		{

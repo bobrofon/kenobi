@@ -161,13 +161,11 @@ void injectSharedLibrary_end()
 {
 }
 
-int has_access(pid_t pid) {
-	char filename[30];
-	sprintf(filename, "/proc/%d/maps", pid);
-	struct stat info;
-	stat(filename, &info);
-	return info.st_uid == getuid();
-}
+typedef union {
+	void* void_ptr;
+	void (*inject_start_ptr)(long, long, long);
+	void (*inject_end_ptr)();
+} cast;
 
 void maybe_inject(pid_t target, const char* libname)
 {
@@ -248,7 +246,9 @@ void maybe_inject(pid_t target, const char* libname)
 	// which means that functions are padded with NOPs. as a result, even
 	// though we've found the length of the function, it is very likely
 	// padded with NOPs, so we need to actually search to find the RET.
-	intptr_t injectSharedLibrary_ret = (intptr_t)findRet(injectSharedLibrary_end) - (intptr_t)injectSharedLibrary;
+	cast start_ptr = {.inject_start_ptr = injectSharedLibrary};
+	cast end_ptr = {.inject_end_ptr = injectSharedLibrary_end};
+	intptr_t injectSharedLibrary_ret = (intptr_t)findRet(end_ptr.void_ptr) - (intptr_t)start_ptr.void_ptr;
 
 	// back up whatever data used to be at the address we want to modify.
 	backup = malloc(injectSharedLibrary_size * sizeof(char));
@@ -260,7 +260,7 @@ void maybe_inject(pid_t target, const char* libname)
 	memset(newcode, 0, injectSharedLibrary_size * sizeof(char));
 
 	// copy the code of injectSharedLibrary() to a buffer.
-	memcpy(newcode, injectSharedLibrary, injectSharedLibrary_size - 1);
+	memcpy(newcode, start_ptr.void_ptr, injectSharedLibrary_size - 1);
 	// overwrite the RET instruction with an INT 3.
 	newcode[injectSharedLibrary_ret] = INTEL_INT3_INSTRUCTION;
 

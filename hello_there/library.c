@@ -37,9 +37,19 @@ SOFTWARE.*/
 // libc wrappers                                                                                100#
 
 typedef int (*open_t)(const char *, int, ...);
+typedef pid_t (*fork_t)(void);
+typedef void (*void_func_t)(void);
+
+typedef union {
+	void* void_ptr;
+	open_t open_ptr;
+	fork_t fork_ptr;
+	void_func_t void_func_ptr;
+} cast;
 
 static int _open(const char* const pathname, const int flags, const mode_t mode) {
-	const open_t open_func = dlsym(RTLD_NEXT, "open");
+	cast func_ptr = {.void_ptr = dlsym(RTLD_NEXT, "open")}; // suppress ISO C warnings
+	const open_t open_func = func_ptr.open_ptr;
 	if (!open_func) {
 		errno = EACCES;
 		return -1;
@@ -47,10 +57,9 @@ static int _open(const char* const pathname, const int flags, const mode_t mode)
 	return open_func(pathname, flags, mode);
 }
 
-typedef pid_t (*fork_t)(void);
-
 static pid_t meta_fork(const char* const fork_name) {
-	const fork_t fork_func = dlsym(RTLD_NEXT,fork_name);
+	cast func_ptr = {.void_ptr = dlsym(RTLD_NEXT,fork_name)}; // suppress ISO C warnings
+	const fork_t fork_func = func_ptr.fork_ptr;
 	if (!fork_func) {
 		errno = ENOSYS;
 		return -1;
@@ -72,7 +81,8 @@ static pid_t _vfork(void) {
 
 static void add_self_preload(void) {
 	Dl_info so_info = {0};
-	if (!dladdr(add_self_preload, &so_info)) {
+	cast func_ptr = {.void_func_ptr = add_self_preload}; // suppress ISO C warning
+	if (!dladdr(func_ptr.void_ptr, &so_info)) {
 		return;
 	}
 
@@ -110,7 +120,8 @@ static bool is_hidden(const char* const path) {
 
 static bool is_preloaded(void) {
 	Dl_info so_info = {0};
-	if (!dladdr(add_self_preload, &so_info)) {
+	cast func_ptr = {.void_func_ptr = add_self_preload}; // suppress ISO C warning
+	if (!dladdr(func_ptr.void_ptr, &so_info)) {
 		return false;
 	}
 	const char* const ld_preload = getenv("LD_PRELOAD");

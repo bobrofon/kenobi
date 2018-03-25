@@ -1,100 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
 #include <string.h>
-#include <unistd.h>
 #include <dlfcn.h>
 
 #include "utils.h"
-
-/*
- * findProcessByName()
- *
- * Given the name of a process, try to find its PID by searching through /proc
- * and reading /proc/[pid]/exe until we find a process whose name matches the
- * given process.
- *
- * args:
- * - char* processName: name of the process whose pid to find
- *
- * returns:
- * - a pid_t containing the pid of the process (or -1 if not found)
- *
- */
-
-pid_t findProcessByName(const char* processName)
-{
-	if(processName == NULL)
-	{
-		return -1;
-	}
-
-	struct dirent *procDirs;
-
-	DIR *directory = opendir("/proc/");
-
-	if (directory)
-	{
-		while ((procDirs = readdir(directory)) != NULL)
-		{
-			if (procDirs->d_type != DT_DIR)
-				continue;
-
-			pid_t pid = atoi(procDirs->d_name);
-
-			int exePathLen = 10 + strlen(procDirs->d_name) + 1;
-			char* exePath = malloc(exePathLen * sizeof(char));
-
-			if(exePath == NULL)
-			{
-				continue;
-			}
-
-			sprintf(exePath, "/proc/%s/exe", procDirs->d_name);
-			exePath[exePathLen-1] = '\0';
-
-			char* exeBuf = malloc(PATH_MAX * sizeof(char));
-			if(exeBuf == NULL)
-			{
-				free(exePath);
-				continue;
-			}
-			ssize_t len = readlink(exePath, exeBuf, PATH_MAX - 1);
-
-			if(len == -1)
-			{
-				free(exePath);
-				free(exeBuf);
-				continue;
-			}
-
-			exeBuf[len] = '\0';
-
-			char* exeName = NULL;
-			char* exeToken = strtok(exeBuf, "/");
-			while(exeToken)
-			{
-				exeName = exeToken;
-				exeToken = strtok(NULL, "/");
-			}
-
-			if(strcmp(exeName, processName) == 0)
-			{
-				free(exePath);
-				free(exeBuf);
-				closedir(directory);
-				return pid;
-			}
-
-			free(exePath);
-			free(exeBuf);
-		}
-
-		closedir(directory);
-	}
-
-	return -1;
-}
 
 /*
  * freespaceaddr()
@@ -269,19 +178,4 @@ const unsigned char* findRet(const void* endAddr)
 		retInstAddr--;
 	}
 	return retInstAddr;
-}
-
-/*
- * usage()
- *
- * Print program usage and exit.
- *
- * args:
- * - char* name: the name of the executable we're running out of
- *
- */
-
-void usage(const char* name)
-{
-	printf("usage: %s [-n process-name] [-p pid] [library-to-inject]\n", name);
 }
