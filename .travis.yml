@@ -5,6 +5,7 @@ script:
   - cmake ..
   - make
 matrix:
+  include:
     - os: linux
       addons:
         apt:
