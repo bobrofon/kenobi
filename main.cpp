@@ -39,7 +39,7 @@ constexpr auto EVIL_LIB = "libhello_there.so";
 
 namespace {
 
-void make_noise() {
+[[ noreturn ]] void make_noise() {
 	const auto pid = getpid();
 	const auto tid = std::this_thread::get_id();
 	for (;;) {
@@ -74,7 +74,7 @@ bool is_filtered(const pid_t pid) {
 
 } // namespace
 
-int main(int argc, char *argv[]) {
+int main() {
 	std::thread noise{make_noise};
 	pid_watcher watcher{};
 

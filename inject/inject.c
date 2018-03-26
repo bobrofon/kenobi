@@ -165,45 +165,49 @@ typedef union {
 	void* void_ptr;
 	void (*inject_start_ptr)(long, long, long);
 	void (*inject_end_ptr)(void);
+	const unsigned char* byte_ptr;
+	intptr_t intptr;
 } cast;
 
 void maybe_inject(pid_t target, const char* libname)
 {
+	unsigned long long addr = 0;
+	size_t injectSharedLibrary_size = 0;
 	char* backup = NULL;
 	char* newcode = NULL;
 	char* libPath = realpath(libname, NULL);
 	if (libPath == NULL) return ;
 	printf("targeting process with pid %d\n", target);
 
-	int libPathLength = strlen(libPath) + 1;
+	size_t libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
-	long mylibcaddr = getlibcaddr(mypid);
-	if (mylibcaddr == -1) return ;
+	unsigned long long mylibcaddr = getlibcaddr(mypid);
+	if (!mylibcaddr) return ;
 
 	// find the addresses of the syscalls that we'd like to use inside the
 	// target, as loaded inside THIS process (i.e. NOT the target process)
-	long mallocAddr = getFunctionAddress("malloc");
-	if (mallocAddr == -1) return ;
-	long freeAddr = getFunctionAddress("free");
-	if (freeAddr == -1) return ;
-	long dlopenAddr = getFunctionAddress("__libc_dlopen_mode");
-	if (dlopenAddr == -1) return ;
+	unsigned long long mallocAddr = getFunctionAddress("malloc");
+	if (!mallocAddr) return ;
+	unsigned long long freeAddr = getFunctionAddress("free");
+	if (!freeAddr) return ;
+	unsigned long long dlopenAddr = getFunctionAddress("__libc_dlopen_mode");
+	if (!dlopenAddr) return ;
 
 	// use the base address of libc to calculate offsets for the syscalls
 	// we want to use
-	long mallocOffset = mallocAddr - mylibcaddr;
-	long freeOffset = freeAddr - mylibcaddr;
-	long dlopenOffset = dlopenAddr - mylibcaddr;
+	unsigned long long mallocOffset = mallocAddr - mylibcaddr;
+	unsigned long long freeOffset = freeAddr - mylibcaddr;
+	unsigned long long dlopenOffset = dlopenAddr - mylibcaddr;
 
 
 	// get the target process' libc address and use it to find the
 	// addresses of the syscalls we want to use inside the target process
-	long targetLibcAddr = getlibcaddr(target);
-	if (targetLibcAddr == -1) return ;
-	long targetMallocAddr = targetLibcAddr + mallocOffset;
-	long targetFreeAddr = targetLibcAddr + freeOffset;
-	long targetDlopenAddr = targetLibcAddr + dlopenOffset;
+	unsigned long long targetLibcAddr = getlibcaddr(target);
+	if (!targetLibcAddr) return ;
+	unsigned long long targetMallocAddr = targetLibcAddr + mallocOffset;
+	unsigned long long targetFreeAddr = targetLibcAddr + freeOffset;
+	unsigned long long targetDlopenAddr = targetLibcAddr + dlopenOffset;
 
 	struct user_regs_struct oldregs, regs;
 	memset(&oldregs, 0, sizeof(struct user_regs_struct));
@@ -215,8 +219,8 @@ void maybe_inject(pid_t target, const char* libname)
 	memcpy(&regs, &oldregs, sizeof(struct user_regs_struct));
 
 	// find a good address to copy code to
-	long addr = freespaceaddr(target);
-	if (addr == -1) goto CLEANUP;
+	addr = freespaceaddr(target);
+	if (!addr) goto CLEANUP;
 	addr += sizeof(long);
 
 	// now that we have an address to copy code to, set the target's rip to
@@ -237,7 +241,7 @@ void maybe_inject(pid_t target, const char* libname)
 	if(ptrace_setregs(target, &regs)) goto CLEANUP;
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate.
-	size_t injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
+	injectSharedLibrary_size = (size_t)((intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary);
 
 	// also figure out where the RET instruction at the end of
 	// injectSharedLibrary() lies so that we can overwrite it with an INT 3
@@ -248,7 +252,8 @@ void maybe_inject(pid_t target, const char* libname)
 	// padded with NOPs, so we need to actually search to find the RET.
 	cast start_ptr = {.inject_start_ptr = injectSharedLibrary};
 	cast end_ptr = {.inject_end_ptr = injectSharedLibrary_end};
-	intptr_t injectSharedLibrary_ret = (intptr_t)findRet(end_ptr.void_ptr) - (intptr_t)start_ptr.void_ptr;
+	cast ret_ptr = {.byte_ptr = findRet(end_ptr.void_ptr)};
+	intptr_t injectSharedLibrary_ret = ret_ptr.intptr - (intptr_t)start_ptr.void_ptr;
 
 	// back up whatever data used to be at the address we want to modify.
 	backup = malloc(injectSharedLibrary_size * sizeof(char));
@@ -319,7 +324,7 @@ void maybe_inject(pid_t target, const char* libname)
 	}
 
 	// now check /proc/pid/maps to see whether injection was successful.
-	if(checkloaded(target, (char *) libname))
+	if(checkloaded(target, libname))
 	{
 		printf("\"%s\" successfully injected\n", libname);
 	}

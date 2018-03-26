@@ -7,6 +7,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
             -Wno-shadow
             -Wno-weak-vtables
             -Wno-language-extension-token
+            -Wno-reserved-id-macro
             -pedantic
             -pedantic-errors)
 else ()

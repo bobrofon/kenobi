@@ -20,21 +20,21 @@
  *
  */
 
-long freespaceaddr(pid_t pid)
+unsigned long long freespaceaddr(pid_t pid)
 {
 	FILE *fp;
 	char filename[30];
 	char line[850];
-	long addr = 0;
+	unsigned long long addr = 0;
 	char str[20];
 	char perms[5];
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
-		return -1;
+		return 0;
 	while(fgets(line, 850, fp) != NULL)
 	{
-		sscanf(line, "%lx-%*x %s %*s %s %*d", &addr, perms, str);
+		sscanf(line, "%llx-%*x %s %*s %s %*d", &addr, perms, str);
 
 		if(strstr(perms, "x") != NULL)
 		{
@@ -59,19 +59,19 @@ long freespaceaddr(pid_t pid)
  *
  */
 
-long getlibcaddr(pid_t pid)
+unsigned long long getlibcaddr(pid_t pid)
 {
 	FILE *fp;
 	char filename[30];
 	char line[850];
-	long addr = 0;
+	unsigned long long addr = 0;
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
-		return -1;
+		return 0;
 	while(fgets(line, 850, fp) != NULL)
 	{
-		sscanf(line, "%lx-%*x %*s %*s %*s %*d", &addr);
+		sscanf(line, "%llx-%*x %*s %*s %*s %*d", &addr);
 		if(strstr(line, "libc-") != NULL)
 		{
 			break;
@@ -134,11 +134,11 @@ int checkloaded(pid_t pid, const char* libname)
  *
  */
 
-long getFunctionAddress(const char* funcName)
+unsigned long long getFunctionAddress(const char* funcName)
 {
 	void* self = dlopen("libc.so.6", RTLD_LAZY);
 	void* funcAddr = dlsym(self, funcName);
-	return (long)funcAddr;
+	return (unsigned long long)funcAddr;
 }
 
 /*

@@ -59,8 +59,6 @@ bool has_ownership(const fs::path& path) {
 	return info.st_uid == getuid();
 }
 
-} // namespace
-
 std::set<pid_t> all_pids() {
 	std::set<pid_t> pids{};
 	for (auto& p: fs::directory_iterator(fs::path(PROC))) {
@@ -71,6 +69,8 @@ std::set<pid_t> all_pids() {
 	}
 	return pids;
 }
+
+} // namespace
 
 std::set<pid_t> pid_watcher::new_pids() {
 	const auto old_pids = std::move(pids_);
