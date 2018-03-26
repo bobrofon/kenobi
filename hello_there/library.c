@@ -142,10 +142,12 @@ pid_t fork(void) {
 	return _fork();
 }
 
+/* cannot use stack frame after vfork call. TODO revrite in asm and override 'exec' instead of 'fork'
 pid_t vfork(void) {
 	add_self_preload();
 	return _vfork();
 }
+*/
 
 int open (const char *pathname, int flags, ...){
 	mode_t mode = 0;
