@@ -50,7 +50,7 @@ SOFTWARE.*/
  *
  */
 
-void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
+static void injectSharedLibrary(__attribute__((unused)) long mallocaddr, __attribute__((unused)) long freeaddr, __attribute__((unused)) long dlopenaddr)
 {
 	// here are the assumptions I'm making about what data will be located
 	// where at the time the target executes this code:
@@ -157,14 +157,14 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
  *
  */
 
-void injectSharedLibrary_end()
+static void injectSharedLibrary_end(void)
 {
 }
 
 typedef union {
 	void* void_ptr;
 	void (*inject_start_ptr)(long, long, long);
-	void (*inject_end_ptr)();
+	void (*inject_end_ptr)(void);
 } cast;
 
 void maybe_inject(pid_t target, const char* libname)

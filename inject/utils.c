@@ -25,7 +25,7 @@ long freespaceaddr(pid_t pid)
 	FILE *fp;
 	char filename[30];
 	char line[850];
-	long addr;
+	long addr = 0;
 	char str[20];
 	char perms[5];
 	sprintf(filename, "/proc/%d/maps", pid);
@@ -64,9 +64,7 @@ long getlibcaddr(pid_t pid)
 	FILE *fp;
 	char filename[30];
 	char line[850];
-	long addr;
-	char perms[5];
-	char* modulePath;
+	long addr = 0;
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
@@ -106,8 +104,6 @@ int checkloaded(pid_t pid, const char* libname)
 	char filename[30];
 	char line[850];
 	long addr;
-	char perms[5];
-	char* modulePath;
 	sprintf(filename, "/proc/%d/maps", pid);
 	fp = fopen(filename, "r");
 	if(fp == NULL)
